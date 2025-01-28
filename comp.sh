@@ -1,37 +1,50 @@
-cd /home/aluno/Downloads/Comando-Shell-Dionne-main/
-path=index.html
-cd /home/aluno/Downloads/Comando-Shell-Dionne-main/
-path2=backup.html
+#!/bin/bash
+#crontab = 
+# * * * * * echo "ola $(whoami)" > /dev/pts/0
+# */2 * * * * (diretorio do script) > /dev/pts/0
+#variaveis com diretórios (pode ser alterado para a localização atual dos arquivos)
+Site=/home/gabriel/Documentos/LAB/www
+Modelo=/home/gabriel/Documentos/LAB/backup
 
-#Verificando se os arquivos foram modificados
-cd 
-comp1=$(zip -r principal.zip $path)
-comp2=$(zip -r  backup.zip $path2)
+cd $Modelo
+keyModelo=$(cat chave.txt)
 
-#Chave Hash
-chave1=$(sha256sum $comp1 | awk '{print$1}' )
-chave2=$(sha256sum $comp2 | awk '{print$1}' )
+cd $Site
+#criando arquivo tar do site para gerar chave
+tar -cvf backup.tar.gz ./*
+keySite=$(sha256sum backup.tar.gz | awk '{print $1}')
+#gerar arquivo chave.txt para comparação
+sha256sum backup.tar.gz | awk '{print $1}' > ${Site}/chave.txt
+#remover o arquivo tar
+rm backup.tar.gz
+#atribuindo variavel com chave do modelo
+dif=$(diff ${Modelo}/chave.txt ${Site}/chave.txt)
+#remover chave.txt do diretório site
+rm ${Site}/chave.txt
 
-
-if [ $chave1 = $chave2 ]; then
-    echo "Os arquivos não foram modificados"
-
+if [ -s $dif ];
+then
+	echo "São iguais"
+	echo "Chave Site: $keySite"
+	echo "Chave modelo: $keyModelo"
 else
-   echo "Os arquivos foram modificados"
-   echo "Enviando email..."
-
-# Enviando Email Caso tenha sido modificado
-  sendEmail -f gabriel.alcantara@icen.ufpa.br -t gabrielribeiro969@outlook.com -s cupijo.ufpa.br:587 -u "Verificação de Modificação de Arquivos" -m "Seus arquivos principais foram alterados.Possivel invasão" -xu gabriel.alcantara@icen.ufpa.br -xp 'yurirafael123'
-  #-a /arquivo.txt \
-  #-xu gabriel.alcantara@icen.ufpa.br\
-  #-xp 'yurirafael'\
-  #-o tls=yes
-   echo "Email enviado com sucesso"
-
-# Copiando os arquvivos de backup e removendo o modificado
-
-rm -r $path
-
-cp -r $path2 $path
-
+	echo "Os arquivos foram modificados, aplicando correções"
+	sendEmail -f gabrielribeiro969@outlook.com \
+  -t gabrielalcantara722@gmail.com \
+  -s smtp-mail.outlook.com:587 \
+  -u "Site Burlado" \
+  -m "Foram encontradas alteraçoes no site, aplicando correções" \
+  -xu gabrielribeiro969@outlook.com \
+  -xp 'Yuri@rafael123' \
+  -o tls=yes
+	#apagar arquivos modificados
+	rm $Site/*
+	#extraindo modelo para o diretório do site
+	cd $Modelo
+	unzip backup.zip -d $Site
+	#zipando e gerando nova chave para futuras comparações
+	cd $Site
+	tar -cvf backup.tar.gz ./*
+	sha256sum backup.tar.gz | awk '{print $1}' > ${Modelo}/chave.txt
+	rm -rf backup.tar.gz
 fi
